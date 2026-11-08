@@ -135,20 +135,42 @@ let minutes=25,remain=0,timer=null,endAt=0,paused=false,current=null,sessionMin=
 function fmt(s){return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
 function renderPresets(){$("presets").innerHTML="";PRESETS.forEach(m=>{const b=document.createElement("button");b.className="btn"+(m===minutes?" sel":"");b.textContent=m+" 分鐘";b.onclick=()=>{minutes=m;$("mins").value=m;renderPresets();$("time").textContent=fmt(m*60)};$("presets").appendChild(b)})}
 $("mins").oninput=e=>{const v=parseInt(e.target.value);if(v>0&&v<=180){minutes=v;renderPresets();$("time").textContent=fmt(v*60)}};
-function tick(){remain=Math.max(0,Math.round((endAt-Date.now())/1000));$("time").textContent=fmt(remain);document.title=`${fmt(remain)} 🌿 捕捉中`;if(remain<=0)finish()}
+// ===== 計時以絕對結束時間計算，離開頁面／重新整理也會繼續倒數 =====
+const SKEY="pokePomodoroSession",EKEY="pokePomodoroEncounter";
+const getJ=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+const setJ=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const saveSess=()=>setJ(SKEY,{endAt,min:sessionMin,paused,remainMs:remain*1000});
+let wakeLock=null;
+async function lockOn(){try{if("wakeLock" in navigator&&!wakeLock&&document.visibilityState==="visible"){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>wakeLock=null)}}catch(e){}}
+function lockOff(){try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null}
+function notify(){try{if("Notification" in window&&Notification.permission==="granted"&&document.visibilityState!=="visible")new Notification("時間到！有寶可夢出現了",{body:"快回來丟精靈球吧！",icon:"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png"})}catch(e){}}
+function tick(){remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));$("time").textContent=fmt(remain);document.title=`${fmt(remain)} 🌿 捕捉中`;if(remain<=0)finish()}
 function setRunning(on){$("setup").classList.toggle("hidden",on);$("start").classList.toggle("hidden",on);$("pause").classList.toggle("hidden",!on);$("cancel").classList.toggle("hidden",!on);$("scene").classList.toggle("shaking",on&&!paused)}
-$("start").onclick=()=>{initAudio();sessionMin=minutes;remain=minutes*60;endAt=Date.now()+remain*1000;paused=false;$("encounter").style.display="none";setRunning(true);timer=setInterval(tick,250);tick()};
-$("pause").onclick=()=>{if(!paused){clearInterval(timer);paused=true;$("pause").textContent="繼續";$("scene").classList.remove("shaking")}else{endAt=Date.now()+remain*1000;paused=false;$("pause").textContent="暫停";$("scene").classList.add("shaking");timer=setInterval(tick,250)}};
-$("cancel").onclick=()=>{if(!confirm("確定要放棄嗎？這次不會遇到寶可夢喔！"))return;stop();$("time").textContent=fmt(minutes*60)};
-function stop(){clearInterval(timer);paused=false;$("pause").textContent="暫停";setRunning(false);document.title="寶可夢番茄鐘"}
-function finish(){stop();chime();current=pickPokemon(sessionMin);const rate=catchRate(sessionMin,current.rarity);current.rate=rate;
+function run(){clearInterval(timer);timer=setInterval(tick,250);tick();lockOn()}
+$("start").onclick=()=>{initAudio();try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission()}catch(e){}
+ sessionMin=minutes;remain=minutes*60;endAt=Date.now()+remain*1000;paused=false;$("encounter").style.display="none";setRunning(true);saveSess();run()};
+$("pause").onclick=()=>{if(!paused){clearInterval(timer);remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));paused=true;$("pause").textContent="繼續";$("scene").classList.remove("shaking");lockOff()}else{endAt=Date.now()+remain*1000;paused=false;$("pause").textContent="暫停";$("scene").classList.add("shaking");run()}saveSess()};
+$("cancel").onclick=()=>{if(!confirm("確定要放棄嗎？這次不會遇到寶可夢喔！"))return;setJ(SKEY,null);stop();$("time").textContent=fmt(minutes*60)};
+function stop(){clearInterval(timer);paused=false;$("pause").textContent="暫停";setRunning(false);document.title="寶可夢番茄鐘";lockOff()}
+function finish(){stop();if(!getJ(SKEY))return;setJ(SKEY,null);
+ const p=pickPokemon();const enc={id:p.id,min:sessionMin,rate:catchRate(sessionMin,p.rarity)};setJ(EKEY,enc);chime();notify();showEncounter(enc)}
+function showEncounter(enc){const p=DEX.find(q=>q.id===enc.id);if(!p){setJ(EKEY,null);return}current=Object.assign({},p,{rate:enc.rate});sessionMin=enc.min;
  $("encName").innerHTML=`野生的 ${current.name} 出現了！ <span class="tag ${current.rarity}">${RARITY[current.rarity].name}</span>`;
- $("encImg").onerror=function(){this.onerror=null;this.src=SPRITE(current.id)};$("encImg").src=current.img;$("encImg").style.display="";$("ball").className="ball";$("encRate").textContent=Math.round(rate*100)+"%";
+ $("encImg").onerror=function(){this.onerror=null;this.src=SPRITE(current.id)};$("encImg").src=current.img;$("encImg").style.display="";$("ball").className="ball";$("encRate").textContent=Math.round(current.rate*100)+"%";
  $("result").textContent="";$("throw").classList.remove("hidden");$("again").classList.add("hidden");$("encounter").style.display="block";document.title="野生寶可夢出現了！"}
-$("throw").onclick=()=>{$("throw").classList.add("hidden");$("encImg").style.display="none";const b=$("ball");b.className="ball throw";
+$("throw").onclick=()=>{if(!getJ(EKEY))return;$("throw").classList.add("hidden");$("encImg").style.display="none";const b=$("ball");b.className="ball throw";
+ // 結果在丟球當下就決定並存檔，動畫中重新整理也無法重抽
+ const ok=Math.random()<current.rate;record(current,sessionMin,ok);setJ(EKEY,null);
  setTimeout(()=>{b.className="ball throw wobble"},800);
- setTimeout(()=>{const ok=Math.random()<current.rate;record(current,sessionMin,ok);if(ok){$("result").textContent=`🎉 抓到了！${current.name} 已登錄圖鑑！`;chime(true)}else{b.className="ball";$("encImg").style.display="";$("result").textContent=`💨 ${current.name} 逃走了…下次加油！`}$("again").classList.remove("hidden");renderDex()},2700)};
+ setTimeout(()=>{if(ok){$("result").textContent=`🎉 抓到了！${current.name} 已登錄圖鑑！`;chime(true)}else{b.className="ball";$("encImg").style.display="";$("result").textContent=`💨 ${current.name} 逃走了…下次加油！`}$("again").classList.remove("hidden");renderDex()},2700)};
 $("again").onclick=()=>{$("encounter").style.display="none";$("time").textContent=fmt(minutes*60)};
+function restore(){const enc=getJ(EKEY);if(enc){if($("encounter").style.display!=="block"||!current||current.id!==enc.id)showEncounter(enc);return}
+ const s=getJ(SKEY);if(!s){return}sessionMin=s.min;
+ if(s.paused){clearInterval(timer);paused=true;remain=Math.round(s.remainMs/1000);endAt=s.endAt;setRunning(true);$("pause").textContent="繼續";$("time").textContent=fmt(remain);document.title=`${fmt(remain)} ⏸ 暫停中`;return}
+ paused=false;endAt=s.endAt;$("encounter").style.display="none";setRunning(true);run()}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")restore()});
+addEventListener("focus",restore);addEventListener("pageshow",restore);
+addEventListener("storage",e=>{if(e.key===SKEY||e.key===EKEY){if(!getJ(SKEY)&&!getJ(EKEY)&&!paused){stop();$("time").textContent=fmt(minutes*60)}restore()}});
 let ac;function initAudio(){if(!ac)try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}
 function chime(win){initAudio();if(!ac)return;const notes=win?[523,659,784,1047]:[784,659,784,988];notes.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type="square";o.frequency.value=f;g.gain.setValueAtTime(.12,ac.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+i*.15+.3);o.connect(g).connect(ac.destination);o.start(ac.currentTime+i*.15);o.stop(ac.currentTime+i*.15+.3)})}
 function renderDex(){const d=load();let n=0;$("dex").innerHTML=DEX.map(p=>{const c=d[p.id];if(c)n++;return `<div class="mon ${c?"":"no"} ${p.rarity==="superlegendary"?"sl":""}"><div>#${String(p.id).padStart(3,"0")}</div>${imgTag(p)}<div>${c?p.name:'<span class="q">？？？</span>'}</div>${c?`<div>捕獲 ×${c}</div>`:""}</div>`}).join("");$("progTxt").textContent=`${n}/${DEX.length}`;$("progBar").style.width=(n/DEX.length*100)+"%";renderHist()}
@@ -161,5 +183,5 @@ $("importFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new 
  d.history=d.history.concat(newH).sort((a,b)=>b.t-a.t);saveAll(d);renderDex();alert(`匯入完成！新增 ${newH.length} 筆紀錄`)}catch(err){alert("匯入失敗：檔案格式不正確")}e.target.value=""};r.readAsText(f)};
 $("tabT").onclick=()=>{$("viewT").classList.remove("hidden");$("viewD").classList.add("hidden");$("tabT").classList.add("active");$("tabD").classList.remove("active")};
 $("tabD").onclick=()=>{renderDex();$("viewD").classList.remove("hidden");$("viewT").classList.add("hidden");$("tabD").classList.add("active");$("tabT").classList.remove("active")};
-renderPresets();renderDex();
+renderPresets();renderDex();restore();
 </script></body></html>
