@@ -37,7 +37,11 @@ input[type=number]{width:90px;font-size:1.2rem;padding:8px;border:3px solid #222
 .mon{background:#fff;border:3px solid #222;border-radius:12px;padding:6px;text-align:center;font-size:.85rem}
 .mon img{width:80px;height:80px;image-rendering:pixelated}.mon.no img{filter:brightness(0);opacity:.35}
 .mon .q{color:#999}.prog{height:20px;border:3px solid #222;border-radius:10px;overflow:hidden;background:#eee}.prog div{height:100%;background:#e3350d}
-.btn{white-space:nowrap}.hidden{display:none}.note{font-size:.85rem;color:#666}
+.btn{white-space:nowrap}.ball.master{background:linear-gradient(#7b2fbf 45%,#222 45% 55%,#fff 55%)}
+.ball.master::before{content:"M";position:absolute;top:2px;left:50%;transform:translateX(-50%);color:#fff;font-weight:900;font-size:12px;z-index:1}
+.mb{display:inline-block;margin:8px;padding:8px 16px;border:3px solid #222;border-radius:14px;background:linear-gradient(90deg,#e6ccff,#ffd6f0);color:#5a1e99;font-weight:900;font-size:1.2rem;animation:glow 1.2s infinite alternate}
+.mb.hidden{display:none}
+.hidden{display:none}.note{font-size:.85rem;color:#666}
 .histwrap{max-height:400px;overflow:auto;border:3px solid #222;border-radius:12px}.hist{width:100%;border-collapse:collapse;font-size:.9rem}
 .hist th{background:#ffcb05;position:sticky;top:0}.hist td,.hist th{padding:6px;border-bottom:1px solid #ddd}.hist img.hi{width:36px;height:36px;vertical-align:middle;object-fit:contain}
 .mon img,#encounter img{object-fit:contain;image-rendering:auto}
@@ -81,9 +85,10 @@ input[type=number]{min-height:48px}
   <button class="btn hidden" id="pause">暫停</button>
   <button class="btn hidden" id="cancel">放棄</button>
  </div>
- <p class="note">出現率：普通 40%・少見 35%・稀有 15%・傳說 7%・<span class="tag superlegendary">超級傳說</span> 3%｜專心越久越好抓</p>
+ <p class="note">出現率：普通 40%・少見 35%・稀有 15%・傳說 7%・<span class="tag superlegendary">超級傳說</span> 3%｜捕獲率最低 50%，專心越久越好抓｜每次遭遇有 0.5% 機率出現 <b style="color:#7b2fbf">大師球</b>（100% 捕獲）</p>
  <div id="encounter">
   <h2 id="encName"></h2><img id="encImg" alt=""><div class="ball" id="ball"></div>
+  <div id="mbBadge" class="mb hidden"><div class="ball master" style="display:inline-block;vertical-align:middle"></div> 大師球出現！捕獲率 100%</div>
   <p>捕獲率：<b id="encRate"></b></p>
   <button class="btn primary" id="throw">丟出精靈球！</button>
   <div id="result"></div>
@@ -116,7 +121,8 @@ GENERATIONS.forEach(g=>g.names.forEach((n,i)=>{const id=g.start+i;let r="common"
 
 // ===== 捕獲率公式 =====
 // 時長基礎：20分=40%，60分=90%，線性，夾在 [20%,95%]；再乘稀有度係數
-function catchRate(minutes,rarity){const base=Math.min(0.95,Math.max(0.2,0.4+(minutes-20)*(0.5/40)));return Math.min(0.95,Math.max(0.10,base*RARITY[rarity].mod))}
+function catchRate(minutes,rarity){const base=Math.min(0.95,Math.max(0.2,0.4+(minutes-20)*(0.5/40)));const old=Math.min(0.95,Math.max(0.10,base*RARITY[rarity].mod));return 0.5+(old-0.10)*0.45/0.85}
+const MASTER_BALL_CHANCE=0.005;
 // 出現機率：只看稀有度（普通40% 少見35% 稀有15% 傳說7% 超級傳說3%），同稀有度內每隻機率相同
 function pickPokemon(){const tiers=Object.keys(RARITY).filter(t=>DEX.some(p=>p.rarity===t));const tot=tiers.reduce((a,t)=>a+RARITY[t].weight,0);let x=Math.random()*tot,tier=tiers[tiers.length-1];for(const t of tiers){x-=RARITY[t].weight;if(x<0){tier=t;break}}const pool=DEX.filter(p=>p.rarity===tier);return pool[Math.floor(Math.random()*pool.length)]}
 
@@ -127,7 +133,7 @@ function normalize(d){if(!d||typeof d!=="object")return{version:2,caught:{},hist
 function loadAll(){try{return normalize(JSON.parse(localStorage.getItem(KEY)))}catch(e){return normalize(null)}}
 function saveAll(d){try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){alert("存檔失敗："+e.message)}}
 const load=()=>loadAll().caught;
-function record(p,min,ok){const d=loadAll();if(ok)d.caught[p.id]=(d.caught[p.id]||0)+1;d.history.unshift({t:Date.now(),id:p.id,min,ok});saveAll(d)}
+function record(p,min,ok,master){const d=loadAll();if(ok)d.caught[p.id]=(d.caught[p.id]||0)+1;d.history.unshift(Object.assign({t:Date.now(),id:p.id,min,ok},master?{mb:true}:{}));saveAll(d)}
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
 const $=id=>document.getElementById(id);
@@ -153,16 +159,16 @@ $("pause").onclick=()=>{if(!paused){clearInterval(timer);remain=Math.max(0,Math.
 $("cancel").onclick=()=>{if(!confirm("確定要放棄嗎？這次不會遇到寶可夢喔！"))return;setJ(SKEY,null);stop();$("time").textContent=fmt(minutes*60)};
 function stop(){clearInterval(timer);paused=false;$("pause").textContent="暫停";setRunning(false);document.title="寶可夢番茄鐘";lockOff()}
 function finish(){stop();if(!getJ(SKEY))return;setJ(SKEY,null);
- const p=pickPokemon();const enc={id:p.id,min:sessionMin,rate:catchRate(sessionMin,p.rarity)};setJ(EKEY,enc);chime();notify();showEncounter(enc)}
-function showEncounter(enc){const p=DEX.find(q=>q.id===enc.id);if(!p){setJ(EKEY,null);return}current=Object.assign({},p,{rate:enc.rate});sessionMin=enc.min;
+ const p=pickPokemon();const enc={id:p.id,min:sessionMin,rate:catchRate(sessionMin,p.rarity),master:Math.random()<MASTER_BALL_CHANCE};setJ(EKEY,enc);chime();notify();showEncounter(enc)}
+function showEncounter(enc){const p=DEX.find(q=>q.id===enc.id);if(!p){setJ(EKEY,null);return}current=Object.assign({},p,{rate:enc.master?1:enc.rate,master:!!enc.master});sessionMin=enc.min;
  $("encName").innerHTML=`野生的 ${current.name} 出現了！ <span class="tag ${current.rarity}">${RARITY[current.rarity].name}</span>`;
- $("encImg").onerror=function(){this.onerror=null;this.src=SPRITE(current.id)};$("encImg").src=current.img;$("encImg").style.display="";$("ball").className="ball";$("encRate").textContent=Math.round(current.rate*100)+"%";
+ $("encImg").onerror=function(){this.onerror=null;this.src=SPRITE(current.id)};$("encImg").src=current.img;$("encImg").style.display="";$("ball").className="ball"+(current.master?" master":"");$("encRate").textContent=Math.round(current.rate*100)+"%";$("mbBadge").classList.toggle("hidden",!current.master);$("throw").textContent=current.master?"丟出大師球！":"丟出精靈球！";
  $("result").textContent="";$("throw").classList.remove("hidden");$("again").classList.add("hidden");$("encounter").style.display="block";document.title="野生寶可夢出現了！"}
-$("throw").onclick=()=>{if(!getJ(EKEY))return;$("throw").classList.add("hidden");$("encImg").style.display="none";const b=$("ball");b.className="ball throw";
+$("throw").onclick=()=>{if(!getJ(EKEY))return;$("throw").classList.add("hidden");$("encImg").style.display="none";const b=$("ball");b.className="ball throw"+(current.master?" master":"");
  // 結果在丟球當下就決定並存檔，動畫中重新整理也無法重抽
- const ok=Math.random()<current.rate;record(current,sessionMin,ok);setJ(EKEY,null);
- setTimeout(()=>{b.className="ball throw wobble"},800);
- setTimeout(()=>{if(ok){$("result").textContent=`🎉 抓到了！${current.name} 已登錄圖鑑！`;chime(true)}else{b.className="ball";$("encImg").style.display="";$("result").textContent=`💨 ${current.name} 逃走了…下次加油！`}$("again").classList.remove("hidden");renderDex()},2700)};
+ const ok=current.master||Math.random()<current.rate;record(current,sessionMin,ok,current.master);setJ(EKEY,null);
+ setTimeout(()=>{b.className="ball throw wobble"+(current.master?" master":"")},800);
+ setTimeout(()=>{if(ok){$("result").textContent=`🎉 ${current.master?"大師球命中！":""}抓到了！${current.name} 已登錄圖鑑！`;chime(true)}else{b.className="ball";$("encImg").style.display="";$("result").textContent=`💨 ${current.name} 逃走了…下次加油！`}$("again").classList.remove("hidden");renderDex()},2700)};
 $("again").onclick=()=>{$("encounter").style.display="none";$("time").textContent=fmt(minutes*60)};
 function restore(){const enc=getJ(EKEY);if(enc){if($("encounter").style.display!=="block"||!current||current.id!==enc.id)showEncounter(enc);return}
  const s=getJ(SKEY);if(!s){return}sessionMin=s.min;
@@ -175,7 +181,7 @@ let ac;function initAudio(){if(!ac)try{ac=new(window.AudioContext||window.webkit
 function chime(win){initAudio();if(!ac)return;const notes=win?[523,659,784,1047]:[784,659,784,988];notes.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type="square";o.frequency.value=f;g.gain.setValueAtTime(.12,ac.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+i*.15+.3);o.connect(g).connect(ac.destination);o.start(ac.currentTime+i*.15);o.stop(ac.currentTime+i*.15+.3)})}
 function renderDex(){const d=load();let n=0;$("dex").innerHTML=DEX.map(p=>{const c=d[p.id];if(c)n++;return `<div class="mon ${c?"":"no"} ${p.rarity==="superlegendary"?"sl":""}"><div>#${String(p.id).padStart(3,"0")}</div>${imgTag(p)}<div>${c?p.name:'<span class="q">？？？</span>'}</div>${c?`<div>捕獲 ×${c}</div>`:""}</div>`}).join("");$("progTxt").textContent=`${n}/${DEX.length}`;$("progBar").style.width=(n/DEX.length*100)+"%";renderHist()}
 function renderHist(){const h=loadAll().history;$("histSum").textContent=`共 ${h.length} 次遭遇，成功 ${h.filter(x=>x.ok).length} 次，累積專心 ${h.reduce((a,x)=>a+x.min,0)} 分鐘`;
- $("hist").innerHTML=h.length?h.map(x=>{const p=DEX.find(q=>q.id===x.id)||{id:x.id,name:"#"+x.id,img:SPRITE(x.id)};const dt=new Date(x.t);return `<tr><td>${dt.toLocaleDateString("zh-TW")} ${dt.toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})}</td><td>${imgTag(p,"hi")}${p.name}</td><td>${x.min} 分</td><td>${x.ok?"✅ 捕獲":"💨 逃走"}</td></tr>`}).join(""):'<tr><td colspan="4">還沒有紀錄，開始專心吧！</td></tr>'}
+ $("hist").innerHTML=h.length?h.map(x=>{const p=DEX.find(q=>q.id===x.id)||{id:x.id,name:"#"+x.id,img:SPRITE(x.id)};const dt=new Date(x.t);return `<tr><td>${dt.toLocaleDateString("zh-TW")} ${dt.toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})}</td><td>${imgTag(p,"hi")}${p.name}</td><td>${x.min} 分</td><td>${x.ok?"✅ 捕獲":"💨 逃走"}${x.mb?" 🟣大師球":""}</td></tr>`}).join(""):'<tr><td colspan="4">還沒有紀錄，開始專心吧！</td></tr>'}
 $("exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify(loadAll(),null,1)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`寶可夢番茄鐘存檔-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove()};
 $("importBtn").onclick=()=>$("importFile").click();
 $("importFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const inc=normalize(JSON.parse(r.result));const d=loadAll();const seen=new Set(d.history.map(x=>x.t+"_"+x.id));const newH=inc.history.filter(x=>!seen.has(x.t+"_"+x.id));
