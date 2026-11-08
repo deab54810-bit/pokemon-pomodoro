@@ -15,10 +15,35 @@ main{max-width:900px;margin:auto;padding:0 12px 40px}
 .presets button.sel{background:#ffcb05}
 input[type=number]{width:90px;font-size:1.2rem;padding:8px;border:3px solid #222;border-radius:10px;text-align:center}
 #time{font-size:clamp(3rem,15vw,6rem);font-weight:900;letter-spacing:4px;margin:10px 0;font-variant-numeric:tabular-nums}
-.scene{height:200px;position:relative;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;background:linear-gradient(#bfe9ff 50%,#7bc96f 50%);border-radius:14px;border:3px solid #222}
-.grass{width:240px;transform-origin:bottom center}.shaking .grass{animation:shake .5s infinite}
-.shaking .grass:nth-child(2){animation-delay:.15s}
-@keyframes shake{0%,100%{transform:rotate(0)}25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+.scene{height:200px;position:relative;overflow:hidden;border-radius:16px;border:3px solid #222;isolation:isolate;
+ background:radial-gradient(ellipse 60% 35% at 50% 100%,rgba(255,255,200,.55),transparent 70%),linear-gradient(#6ec6ff 0%,#b8e6ff 42%,#e9f9d0 56%,#8fd46a 60%,#4fae45 100%);--int:0}
+.scene .rays{opacity:.4!important;position:absolute;inset:-40% -20% 30%;background:repeating-conic-gradient(from 0deg at 50% 0%,rgba(255,255,255,.22) 0 6deg,transparent 6deg 16deg);opacity:.55;transform-origin:50% 0;animation:rays 18s linear infinite;mix-blend-mode:screen;pointer-events:none}
+@keyframes rays{to{transform:rotate(16deg)}}
+.scene .hills{position:absolute;left:0;right:0;bottom:0;height:46%;background:radial-gradient(ellipse 40% 60% at 15% 100%,#5cbf4e 60%,transparent 61%),radial-gradient(ellipse 45% 55% at 88% 100%,#56b848 60%,transparent 61%);opacity:.9}
+.scene .shadow{position:absolute;left:50%;bottom:4%;width:min(62%,360px);height:16px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(0,40,0,.45),transparent);border-radius:50%}
+.scene .glow{position:absolute;left:50%;bottom:0;width:min(80%,440px);aspect-ratio:2/1;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 85%,rgba(255,250,170,.95),rgba(255,220,80,.35) 40%,transparent 70%);opacity:0;transition:opacity .6s;pointer-events:none}
+.scene.final .glow{opacity:1;animation:pulse .7s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.55}to{opacity:1}}
+.clump{position:absolute;left:50%;bottom:2%;width:min(82%,460px);transform:translateX(-50%);overflow:visible}
+.clump svg{display:block;width:100%;height:auto;overflow:visible}
+.layer{transform-box:fill-box;transform-origin:50% 100%;will-change:transform}
+.shaking .l1{animation:sway 3.2s ease-in-out infinite}
+.shaking .l2{animation:sway 2.6s ease-in-out -.8s infinite}
+.shaking .l3{animation:sway 2.2s ease-in-out -1.3s infinite}
+@keyframes sway{0%,100%{transform:rotate(-1.2deg) skewX(1deg)}50%{transform:rotate(1.2deg) skewX(-1deg)}}
+.shaking.burst .l1{animation:rustle .14s ease-in-out infinite}
+.shaking.burst .l2{animation:rustle .11s ease-in-out -.05s infinite}
+.shaking.burst .l3{animation:rustle .09s ease-in-out -.03s infinite}
+.shaking.burst .clump{animation:hop .28s ease-in-out infinite}
+@keyframes rustle{0%,100%{transform:rotate(calc(-3deg - var(--int)*5deg)) skewX(calc(3deg + var(--int)*6deg))}50%{transform:rotate(calc(3deg + var(--int)*5deg)) skewX(calc(-3deg - var(--int)*6deg))}}
+@keyframes hop{0%,100%{transform:translateX(-50%) translateY(0) scaleY(1)}50%{transform:translateX(-50%) translateY(-3px) scaleY(1.04)}}
+.final .clump svg{filter:drop-shadow(0 0 10px rgba(255,240,120,.9))}
+.fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.leaf{position:absolute;width:18px;height:9px;box-shadow:0 0 0 1px rgba(20,70,20,.5);border-radius:0 100% 0 100%;background:linear-gradient(135deg,#9be15d,#2e8b2e);will-change:transform,opacity}
+.spark{position:absolute;width:12px;height:12px;border-radius:50%;background:radial-gradient(#fff,#fff7a0 40%,transparent 70%);will-change:transform,opacity}
+.hint{position:absolute;left:50%;bottom:58%;font:900 2.4rem/1 sans-serif;color:#ffde00;-webkit-text-stroke:2px #222;text-shadow:0 3px 0 #222;opacity:0;pointer-events:none}
+.ghost{position:absolute;left:50%;bottom:20%;width:70px;height:60px;transform:translateX(-50%);background:radial-gradient(ellipse at 50% 40%,rgba(20,40,20,.55),transparent 70%);border-radius:50% 50% 40% 40%;opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.scene .rays,.shaking .layer,.shaking.burst .clump,.scene.final .glow{animation:none!important}}
 .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 #encounter{display:none}#encounter img{width:160px;image-rendering:pixelated;animation:pop .5s}
 @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
@@ -50,10 +75,10 @@ html,body{overflow-x:hidden;-webkit-tap-highlight-color:transparent}
 body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 button{touch-action:manipulation;min-height:48px}
 input[type=number]{min-height:48px}
-.scene{width:100%}.grass{max-width:70%}
+.scene{width:100%}
 #encounter img{max-width:40vw}
-@media (max-width:480px){header h1{font-size:1.3rem}.card{padding:14px}.presets .btn{flex:1 1 40%;padding:10px 6px}.btn.primary{width:100%}.row .btn{flex:1}.scene{height:160px}.dex{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))}.mon img{width:64px;height:64px}}
-@media (min-width:768px){main{max-width:1000px}.scene{height:260px}.grass{width:85%;max-width:360px}}
+@media (max-width:480px){header h1{font-size:1.3rem}.card{padding:14px}.presets .btn{flex:1 1 40%;padding:10px 6px}.btn.primary{width:100%}.row .btn{flex:1}.scene{height:190px}.dex{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))}.mon img{width:64px;height:64px}}
+@media (min-width:768px){main{max-width:1000px}.scene{height:260px}}
 @media (orientation:landscape) and (min-width:600px){
  #viewT{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center}
  .stage #time{margin:0 0 8px}
@@ -71,8 +96,18 @@ input[type=number]{min-height:48px}
  <div class="stage">
  <div id="time">25:00</div>
  <div class="scene" id="scene">
-  <svg class="grass" viewBox="0 0 240 120"><g fill="#3a9d3a" stroke="#1f5e1f" stroke-width="3">
-   <path d="M10 120 L30 30 L50 120Z"/><path d="M40 120 L70 10 L95 120Z"/><path d="M85 120 L115 25 L140 120Z"/><path d="M130 120 L160 5 L185 120Z"/><path d="M175 120 L205 35 L230 120Z"/></g></svg>
+  <div class="rays"></div><div class="hills"></div><div class="glow"></div><div class="shadow"></div>
+  <div class="ghost" id="ghost"></div>
+  <div class="clump"><svg id="clump" viewBox="0 0 400 200" aria-hidden="true">
+   <defs>
+    <linearGradient id="gB" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#1d5c22"/><stop offset="1" stop-color="#4c9e3c"/></linearGradient>
+    <linearGradient id="gM" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#23772a"/><stop offset=".7" stop-color="#5cc046"/><stop offset="1" stop-color="#9be36a"/></linearGradient>
+    <linearGradient id="gF" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2f8f30"/><stop offset=".6" stop-color="#76d652"/><stop offset="1" stop-color="#d4ff8f"/></linearGradient>
+   </defs>
+   <g class="layer l1" id="l1"></g><g class="layer l2" id="l2"></g><g class="layer l3" id="l3"></g>
+  </svg></div>
+  <div class="hint" id="hint">！</div>
+  <div class="fx" id="fx"></div>
  </div>
  </div>
  <div class="panel">
@@ -150,12 +185,35 @@ let wakeLock=null;
 async function lockOn(){try{if("wakeLock" in navigator&&!wakeLock&&document.visibilityState==="visible"){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>wakeLock=null)}}catch(e){}}
 function lockOff(){try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null}
 function notify(){try{if("Notification" in window&&Notification.permission==="granted"&&document.visibilityState!=="visible")new Notification("時間到！有寶可夢出現了",{body:"快回來丟精靈球吧！",icon:"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png"})}catch(e){}}
-function tick(){remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));$("time").textContent=fmt(remain);document.title=`${fmt(remain)} 🌿 捕捉中`;if(remain<=0)finish()}
-function setRunning(on){$("setup").classList.toggle("hidden",on);$("start").classList.toggle("hidden",on);$("pause").classList.toggle("hidden",!on);$("cancel").classList.toggle("hidden",!on);$("scene").classList.toggle("shaking",on&&!paused)}
+function tick(){remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));$("time").textContent=fmt(remain);document.title=`${fmt(remain)} 🌿 捕捉中`;if(!paused)sceneProgress();if(remain<=0)finish()}
+// ===== 草叢動畫（機台風格）=====
+const RM=matchMedia("(prefers-reduced-motion: reduce)").matches;
+(function buildClump(){const NS="http://www.w3.org/2000/svg";let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ const L=[["l1","gB",15,135,170,.55],["l2","gM",17,105,140,.75],["l3","gF",14,70,105,1]];
+ L.forEach(([id,grad,n,hmin,hmax,light])=>{const g=document.getElementById(id);
+  for(let i=0;i<n;i++){const t=i/(n-1),cx=200+(t-.5)*(330-70*light)+(rnd()-.5)*14,h=hmin*(.55+.45*Math.sin(Math.PI*t))+(hmax-hmin)*Math.sin(Math.PI*t)*(.7+rnd()*.3),w=16+rnd()*12,bend=(t-.5)*120+(rnd()-.5)*30,tipx=cx+bend,tipy=196-h;
+   const p=document.createElementNS(NS,"path");
+   p.setAttribute("d",`M${cx-w} 200 Q${cx-w*.3+bend*.35} ${200-h*.55} ${tipx} ${tipy} Q${cx+w*.3+bend*.45} ${200-h*.5} ${cx+w} 200Z`);
+   p.setAttribute("fill",`url(#${grad})`);p.setAttribute("stroke","#164a1a");p.setAttribute("stroke-width",light>.9?"2":"1.5");
+   p.style.filter=`hue-rotate(${(rnd()-.5)*30}deg) brightness(${.9+rnd()*.25})`;g.appendChild(p);
+   if(light>.7&&rnd()>.4){const hl=document.createElementNS(NS,"path");hl.setAttribute("d",`M${cx-w*.2} 196 Q${cx+bend*.3} ${200-h*.55} ${tipx-bend*.04} ${tipy+8}`);hl.setAttribute("stroke","rgba(255,255,220,.55)");hl.setAttribute("stroke-width","2");hl.setAttribute("fill","none");hl.setAttribute("stroke-linecap","round");g.appendChild(hl)}}})})();
+let burstT=null,intensity=0;
+function sceneProgress(){const tot=sessionMin*60||1;intensity=Math.min(1,Math.max(0,1-remain/tot));const sc=$("scene");sc.style.setProperty("--int",intensity.toFixed(2));sc.classList.toggle("final",remain>0&&remain<=tot*0.1)}
+function particles(n){if(RM)return;const fx=$("fx"),W=fx.clientWidth,H=fx.clientHeight;for(let i=0;i<n;i++){const leaf=Math.random()<.7,e=document.createElement("div");e.className=leaf?"leaf":"spark";
+ const x0=W/2+(Math.random()-.5)*W*.4,y0=H*.75-Math.random()*H*.25;e.style.left=x0+"px";e.style.top=y0+"px";if(leaf)e.style.filter=`hue-rotate(${(Math.random()-.5)*50}deg)`;fx.appendChild(e);
+ const dx=(Math.random()-.5)*W*.7,dy=-(40+Math.random()*H*.6),r=(Math.random()-.5)*720,d=700+Math.random()*700;
+ e.animate([{transform:"translate(0,0) rotate(0) scale(1)",opacity:1},{transform:`translate(${dx*.6}px,${dy}px) rotate(${r*.6}deg) scale(1)`,opacity:1,offset:.55},{transform:`translate(${dx}px,${dy*.4+40}px) rotate(${r}deg) scale(.6)`,opacity:0}],{duration:d,easing:"cubic-bezier(.2,.7,.4,1)"}).onfinish=()=>e.remove()}}
+function hint(){if(RM)return;const g=$("ghost"),h=$("hint");g.animate([{opacity:0,transform:"translateX(-50%) scale(.9)"},{opacity:.9,transform:"translateX(-50%) scale(1.05)"},{opacity:0,transform:"translateX(-50%) scale(1)"}],{duration:900});
+ h.animate([{opacity:0,transform:"translate(-50%,10px) scale(.4)"},{opacity:1,transform:"translate(-50%,-6px) scale(1.2)",offset:.25},{opacity:1,transform:"translate(-50%,0) scale(1)",offset:.75},{opacity:0,transform:"translate(-50%,-10px) scale(1)"}],{duration:1000})}
+function burst(){const sc=$("scene");if(!sc.classList.contains("shaking"))return;sceneProgress();const dur=RM?250:450+intensity*600;sc.classList.add("burst");particles(Math.round(10+intensity*22));
+ if(Math.random()<.12+intensity*.35)hint();setTimeout(()=>sc.classList.remove("burst"),dur);scheduleBurst()}
+function scheduleBurst(){clearTimeout(burstT);if(!$("scene").classList.contains("shaking"))return;const gap=(intensity>.9?600:3600-intensity*2600)*(.7+Math.random()*.6);burstT=setTimeout(burst,gap)}
+function sceneOn(on){const sc=$("scene");sc.classList.toggle("shaking",on);if(on){sceneProgress();scheduleBurst()}else{clearTimeout(burstT);sc.classList.remove("burst","final")}}
+function setRunning(on){$("setup").classList.toggle("hidden",on);$("start").classList.toggle("hidden",on);$("pause").classList.toggle("hidden",!on);$("cancel").classList.toggle("hidden",!on);sceneOn(on&&!paused)}
 function run(){clearInterval(timer);timer=setInterval(tick,250);tick();lockOn()}
 $("start").onclick=()=>{initAudio();try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission()}catch(e){}
  sessionMin=minutes;remain=minutes*60;endAt=Date.now()+remain*1000;paused=false;$("encounter").style.display="none";setRunning(true);saveSess();run()};
-$("pause").onclick=()=>{if(!paused){clearInterval(timer);remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));paused=true;$("pause").textContent="繼續";$("scene").classList.remove("shaking");lockOff()}else{endAt=Date.now()+remain*1000;paused=false;$("pause").textContent="暫停";$("scene").classList.add("shaking");run()}saveSess()};
+$("pause").onclick=()=>{if(!paused){clearInterval(timer);remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));paused=true;$("pause").textContent="繼續";sceneOn(false);lockOff()}else{endAt=Date.now()+remain*1000;paused=false;$("pause").textContent="暫停";sceneOn(true);run()}saveSess()};
 $("cancel").onclick=()=>{if(!confirm("確定要放棄嗎？這次不會遇到寶可夢喔！"))return;setJ(SKEY,null);stop();$("time").textContent=fmt(minutes*60)};
 function stop(){clearInterval(timer);paused=false;$("pause").textContent="暫停";setRunning(false);document.title="寶可夢番茄鐘";lockOff()}
 function finish(){stop();if(!getJ(SKEY))return;setJ(SKEY,null);
